@@ -1,0 +1,12 @@
+[package]
+name = "acorn-kit"
+description = "Controls for GPUI apps in the acorn house style: buttons, fields, menus, tooltips, avatars, motion, icons, fuzzy matching, and text-field keys"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-kit.workspace = true
+acorn-theme.workspace = true

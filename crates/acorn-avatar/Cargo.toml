@@ -1,0 +1,10 @@
+[package]
+name = "acorn-avatar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }

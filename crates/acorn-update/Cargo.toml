@@ -1,0 +1,16 @@
+[package]
+name = "acorn-update"
+description = "Self-update for GPUI apps from GitHub releases: a signed macOS .app swapped in place, or an ed25519-signed AppImage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-kit.workspace = true
+acorn-app.workspace = true
+serde_json.workspace = true
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "http2"] }
+ed25519-dalek = "3"
+tracing.workspace = true
