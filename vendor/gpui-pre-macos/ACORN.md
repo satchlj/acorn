@@ -1,4 +1,4 @@
-# gpui-pre-macos 0.3.12, patched for Acorn apps (first made for Puzil)
+# gpui-pre-macos 0.3.14, patched for Acorn apps (first made for Puzil)
 
 GPUI's macOS platform crate from crates.io (Apache-2.0, see `LICENSE-APACHE`), with two changes:
 

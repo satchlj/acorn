@@ -1,4 +1,4 @@
-# gpui-pre-apple 0.3.12, patched for Acorn apps (first made for Puzil)
+# gpui-pre-apple 0.3.14, patched for Acorn apps (first made for Puzil)
 
 GPUI's macOS renderer from crates.io (Apache-2.0, see `LICENSE-APACHE`), with three changes. The first two together hold two window-sized drawables instead of four: about 34 MB less memory at a
 1280×860 window on a 2× display (`tools/bench/run.py`: 167 → 133 MB at idle).
