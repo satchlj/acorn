@@ -197,7 +197,7 @@ pub fn check_now(cx: &mut App) {
         cx.notify();
     });
     cx.spawn(async move |cx| {
-        let found = check(&e, cx).await;
+        let found = check(&e, cx, true).await == Check::Newer;
         let _ = e.update(cx, |u, cx| {
             u.checking = false;
             u.up_to_date_notice = !found && u.available.is_none();
@@ -212,8 +212,20 @@ pub fn check_now(cx: &mut App) {
     .detach();
 }
 
-/// Asks GitHub for the latest release; true when it's newer than this copy.
-async fn check(e: &Entity<Updates>, cx: &mut AsyncApp) -> bool {
+#[derive(Debug, PartialEq)]
+enum Check {
+    /// A newer release, now offered.
+    Newer,
+    /// Nothing newer (or the check failed).
+    Nothing,
+    /// A newer release without this machine's build yet; not offered.
+    NotYet,
+}
+
+/// Asks GitHub for the latest release, and offers it when it's newer than this copy. Unless
+/// `asked` (Check for Updates), a release this copy could install but whose file for it
+/// isn't attached yet is left for a later check, rather than offered as a page to visit.
+async fn check(e: &Entity<Updates>, cx: &mut AsyncApp, asked: bool) -> Check {
     // <PREFIX>_UPDATE_FEED stands in a local release description, for testing updates.
     let feed = acorn_app::env("UPDATE_FEED").and_then(|f| f.into_string().ok()).unwrap_or_else(|| cx.update(|cx| format!("https://api.github.com/repos/{}/releases/latest", config(cx).repo)));
     match on_tokio_json(feed).await {
@@ -228,7 +240,7 @@ async fn check(e: &Entity<Updates>, cx: &mut AsyncApp) -> bool {
                         cx.notify();
                     }
                 });
-                return false;
+                return Check::Nothing;
             }
             let urls: Vec<String> = v["assets"]
                 .as_array()
@@ -246,6 +258,14 @@ async fn check(e: &Entity<Updates>, cx: &mut AsyncApp) -> bool {
                 zip,
                 appimage,
             };
+            let not_yet = match installed() {
+                Some(Installed::Bundle(_)) => release.zip.is_none(),
+                Some(Installed::AppImage(_)) => release.appimage.is_none(),
+                None => false,
+            };
+            if not_yet && !asked {
+                return Check::NotYet;
+            }
             let _ = e.update(cx, |u, cx| {
                 // A newer release than the one put off asks again.
                 if u.available.as_ref().is_none_or(|a| a.version != release.version) {
@@ -254,16 +274,17 @@ async fn check(e: &Entity<Updates>, cx: &mut AsyncApp) -> bool {
                 u.available = Some(release);
                 cx.notify();
             });
-            true
+            Check::Newer
         }
         Err(err) => {
             tracing::debug!("update check: {err}");
-            false
+            Check::Nothing
         }
     }
 }
 
-/// Starts checking: at launch (after a short pause) and every six hours. Call once.
+/// Starts checking: at launch (after a short pause) and every six hours (ten minutes while a
+/// new release's file for this machine is still on its way). Call once.
 pub fn init(config: Config, cx: &mut App) {
     cx.set_global(ConfigHandle(config));
     let e = cx.new(|_| Updates { available: None, phase: Phase::Idle, dismissed: false, checking: false, up_to_date_notice: false });
@@ -285,8 +306,13 @@ pub fn init(config: Config, cx: &mut App) {
     }
     cx.spawn(async move |cx| {
         loop {
-            check(&e, cx).await;
-            cx.background_executor().timer(Duration::from_secs(6 * 3600)).await;
+            // A release whose build for this machine isn't attached yet (the AppImages follow
+            // a release by a quarter of an hour) isn't offered: look again soon.
+            let wait = match check(&e, cx, false).await {
+                Check::NotYet => 10 * 60,
+                _ => 6 * 3600,
+            };
+            cx.background_executor().timer(Duration::from_secs(wait)).await;
         }
     })
     .detach();
